@@ -19,6 +19,7 @@
 
 """Paillier encryption library for partially homomorphic encryption."""
 import random
+import hashlib
 import math
 import sys
 try:
@@ -26,9 +27,17 @@ try:
 except ImportError:
     Mapping = dict
 
-from phe.util import invert, powmod, getprimeover, isqrt
+from util import invert, powmod, getprimeover, isqrt
 
 DEFAULT_KEYSIZE = 2048
+
+
+##### by wojciech
+def to_bytes(n, length, endianess='big'):
+    h = '%x' % n
+    s = ('0'*(len(h) % 2) + h).zfill(length*2).decode('hex')
+    return s if endianess == 'big' else s[::-1]
+#####
 
 
 def generate_paillier_keypair(private_keyring=None, n_length=DEFAULT_KEYSIZE):
@@ -64,7 +73,6 @@ def generate_paillier_keypair(private_keyring=None, n_length=DEFAULT_KEYSIZE):
 
     return public_key, private_key
 
-
 class PaillierPublicKey(object):
     """Contains a public key and associated encryption methods.
 
@@ -87,7 +95,13 @@ class PaillierPublicKey(object):
         self.max_int = n // 3 - 1
 
     def __repr__(self):
-        publicKeyHash = hex(hash(self))[2:]
+        #nsquare = self.nsquare.to_bytes(1024, 'big')
+        #g = self.g.to_bytes(1024, 'big')
+        ### by wojciech
+        nsquare = to_bytes(self.nsquare, 1024, 'big')
+        g = to_bytes(1024, 'big')
+        ###
+        publicKeyHash = hashlib.sha1(nsquare + g).hexdigest()
         return "<PaillierPublicKey {}>".format(publicKeyHash[:10])
 
     def __eq__(self, other):
@@ -115,8 +129,8 @@ class PaillierPublicKey(object):
         Raises:
           TypeError: if plaintext is not an int.
         """
-        if not isinstance(plaintext, int):
-            raise TypeError('Expected int type plaintext but got: %s' %
+        if not isinstance(plaintext, long):
+            raise TypeError('Expected long type plaintext but got: %s' %
                             type(plaintext))
 
         if self.n - self.max_int <= plaintext < self.n:
@@ -309,9 +323,9 @@ class PaillierPrivateKey(object):
             raise TypeError('Expected encrypted_number to be an EncryptedNumber'
                             ' not: %s' % type(encrypted_number))
 
-        if self.public_key != encrypted_number.public_key:
-            raise ValueError('encrypted_number was encrypted against a '
-                             'different key!')
+        #if self.public_key != encrypted_number.public_key:
+        #    raise ValueError('encrypted_number was encrypted against a '
+        #                     'different key!')
 
         if Encoding is None:
             Encoding = EncodedNumber
@@ -334,8 +348,8 @@ class PaillierPrivateKey(object):
         Raises:
           TypeError: if ciphertext is not an int.
         """
-        if not isinstance(ciphertext, int):
-            raise TypeError('Expected ciphertext to be an int, not: %s' %
+        if not isinstance(ciphertext, long):
+            raise TypeError('Expected ciphertext to be a long, not: %s' %
                 type(ciphertext))
 
         decrypt_to_p = self.l_function(powmod(ciphertext, self.p-1, self.psquare), self.p) * self.hp % self.p
@@ -584,7 +598,7 @@ class EncodedNumber(object):
         """
         # Calculate the maximum exponent for desired precision
         if precision is None:
-            if isinstance(scalar, int):
+            if isinstance(scalar, long):
                 prec_exponent = 0
             elif isinstance(scalar, float):
                 # Encode with *at least* as much precision as the python float
@@ -974,8 +988,8 @@ class EncryptedNumber(object):
           ValueError: if *plaintext* is not between 0 and
             :attr:`PaillierPublicKey.n`.
         """
-        if not isinstance(plaintext, int):
-            raise TypeError('Expected ciphertext to be int, not %s' %
+        if not isinstance(plaintext, long):
+            raise TypeError('Expected ciphertext to be long, not %s' %
                 type(plaintext))
 
         if plaintext < 0 or plaintext >= self.public_key.n:
