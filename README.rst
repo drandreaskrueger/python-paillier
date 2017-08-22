@@ -1,5 +1,7 @@
 python-paillier  |release|
-===============
+==========================
+
+NEW: Attempt at a py2.7 backport, see `README_py27.md`
 
 +---------------------+
 |      |travisM|      |
